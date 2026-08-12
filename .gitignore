@@ -23,6 +23,13 @@ app/rayfin/.lockfile.json
 app/rayfin/.temp/
 
 # ---------------------------------------------------------------- build output
+#
+# sm_onesafe.model.bim is written by tools/build_semantic_model.py purely so you
+# can inspect what was deployed. The model itself is pushed inline from memory,
+# so this file is never read back. It also bakes in the SQL endpoint hostname of
+# whichever tenant last ran the build, which is not something to publish.
+tools/sm_onesafe.model.bim
+
 node_modules/
 __pycache__/
 *.pyc
