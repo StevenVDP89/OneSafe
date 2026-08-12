@@ -1,4 +1,4 @@
-﻿id: onesafe
+id: onesafe
 name: OneSafe
 version: 1.0.11
 services:
@@ -14,7 +14,7 @@ services:
     allowedRedirectUris:
       - http://localhost:5173
       # `rayfin up` appends this deployment's hosting URL here automatically.
-      # Leave it out of source control â€” each deployment gets its own origin.
+      # Leave it out of source control - each deployment gets its own origin.
     fabric:
       enabled: true
   data:

@@ -1,0 +1,17 @@
+# Normalise line endings on the way into the repository.
+#
+# Everything tracked here is currently LF. Without this file, a colleague
+# cloning on Windows and committing back would flip whole files to CRLF and
+# produce diffs that are pure noise. `text=auto` keeps the stored form LF while
+# still checking out whatever is native locally.
+* text=auto eol=lf
+
+# Vendored, minified libraries: store byte-for-byte, never touch.
+app/dist/vendor/** -text -diff
+
+# Generated lockfile: keep it out of diffs, it is noise in review.
+app/package-lock.json -diff linguist-generated
+
+# GitHub language stats: this is a data/security project, not a JS one. Without
+# this the vendored MSAL and Chart.js bundles make the repo look like JavaScript.
+app/dist/vendor/** linguist-vendored

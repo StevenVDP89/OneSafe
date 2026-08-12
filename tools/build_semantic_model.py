@@ -1,4 +1,4 @@
-﻿"""Build and deploy the OneSafe Direct Lake semantic model.
+"""Build and deploy the OneSafe Direct Lake semantic model.
 
 Generates a TMSL model over the ``gold`` schema of the OneSafe lakehouse and
 deploys it through the Fabric semantic model definition API.
