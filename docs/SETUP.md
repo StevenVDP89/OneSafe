@@ -273,6 +273,7 @@ user, so model permissions *are* the access control. If someone can read
 | Grants admin consent | **No** — no API without a privileged role; the command is printed |
 | Toggles Fabric tenant settings | **No** — no write API; they are checked and reported |
 | Creates workspaces, lakehouse, notebooks, pipeline, model | Yes |
+| Grants the scanner SPN access to its own workspaces | Yes — the Direct Lake refresh reads gold with that identity |
 | Deploys the front-end | **No** — run `npx rayfin up` (step 4) |
 | Registers the app's hosting URL | Yes, on the next run, once `rayfin up` has produced one |
 | Creates the admin security group | Yes, via `tools/secure_model.py` — but it will not decide who belongs in it |
@@ -350,7 +351,24 @@ it with `[IO.File]::WriteAllText($path, $json, [Text.UTF8Encoding]::new($false))
 **A notebook job "succeeds" but nothing changed**
 Notebook *jobs* produce no cell output, and an unhandled exception cancels the
 whole Spark session before later cells run. Use `tools/read_onelake.py` to read
-diagnostics the notebook wrote to `Files/`.
+diagnostics the notebook wrote to `Files/`:
+
+```powershell
+python tools/read_onelake.py Files/diag                       # list tracebacks
+python tools/read_onelake.py Files/diag/error_06_build_gold.txt
+```
+
+**`We cannot access the source Delta table '<name>'` during refresh**
+The table genuinely does not exist yet, or the identity running the refresh
+cannot read the lakehouse. Check, in that order:
+
+1. Did the pipeline reach `06_build_gold`? Look for
+   `Files/diag/error_06_build_gold.txt`.
+2. Does the scanner SPN hold a role on the data workspace? `setup.py` grants it;
+   re-run setup if the workspace was created by hand.
+3. Is `sqlEndpointId` set in `tools/config.json`? On a brand-new lakehouse the
+   endpoint takes a minute to appear, and a model built before it exists points
+   at nothing. Re-run setup to record it and rebuild the model.
 
 **Semantic model refresh fails after a schema change**
 Direct Lake tables must exist before the model references them. Run the pipeline
@@ -360,8 +378,9 @@ first, then `python tools/build_semantic_model.py`.
 
 ## Removing OneSafe
 
-Delete the **OneSafe**, **OneSafe App** and **OneSafe Demo** workspaces in the
-portal, then remove the two registrations:
+Delete the three workspaces in the portal — by default **OneSafe**,
+**OneSafe App** and **OneSafe Demo**, or whatever you passed to
+`--workspace-name` — then remove the two registrations:
 
 ```powershell
 az ad app delete --id <scanner-app-id>
