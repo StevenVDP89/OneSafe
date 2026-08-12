@@ -32,6 +32,22 @@ REFRESH_TIMEOUT_SECONDS = 60 * 45
 
 # CELL ********************
 
+# ---------------------------------------------------------------- telemetry (first pass)
+
+# The telemetry table is rebuilt again at the end of this notebook, with this
+# run's own outcome included. It is written here as well because on the very
+# first run of a new deployment the table does not exist yet, and a Direct Lake
+# model that references a missing Delta table fails the whole refresh with
+# "We cannot access the source Delta table 'fact_pipeline_run'". Writing it
+# before the refresh guarantees every table the model references exists.
+try:
+    build_pipeline_run_table()
+    print("[onesafe] telemetry table written ahead of refresh")
+except Exception as exc:  # noqa: BLE001
+    print(f"[onesafe] pre-refresh telemetry build failed (non-fatal): {exc}")
+
+# CELL ********************
+
 # ---------------------------------------------------------------- sync SQL endpoint
 
 
