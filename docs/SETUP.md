@@ -346,3 +346,18 @@ time — export anything you need first.
   knowing before you change anything.
 - `tools/config.example.json` — every configuration key, with notes on which are
   discovered and which you supply.
+
+### Repository layout
+
+| Path | What it is |
+|---|---|
+| `notebooks/` | The PySpark notebooks, in run order. `00_common` holds auth and the paged-GET helper; `01`–`04` extract to bronze, `05` transforms to silver, `06` builds gold, `07`–`10` handle change detection, validation, refresh and failure alerting; `9x_` are demo seeders and diagnostics |
+| `tools/` | Host-side Python. `setup.py` bootstraps; the rest deploy, query and seed. Stdlib only |
+| `tools/onesafe_config.py` | The config contract. Every tool reads through it, so a missing key gives one actionable message instead of a traceback |
+| `app/dist/` | The front-end. Hand-written, **not** build output — there is no build step, Rayfin serves these files verbatim |
+| `app/rayfin/` | Rayfin app manifest. `.env` and `.deployments.json` are gitignored |
+| `docs/` | This guide |
+
+Files that describe *your* deployment — `tools/config.json`,
+`tools/notebook_ids.json`, `app/dist/config.js`, `app/rayfin/.env` — are
+gitignored. They are generated, not authored; never commit them.
