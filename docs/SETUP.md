@@ -137,21 +137,30 @@ Worth doing if Rayfin refuses to create its item — see [Troubleshooting](#trou
 
 ```powershell
 cd app
-npx rayfin up
+npm install
+npx rayfin up --workspace-id <appWorkspaceId>
 ```
 
-Rayfin prints a hosting URL like
-`https://<name>-<region>.webapp.fabricapps.net`. Register it as a redirect URI
-on the SPA app, then redeploy so the app picks it up:
+`<appWorkspaceId>` is printed by `setup.py` and stored in `tools/config.json`.
+Omit `--workspace-id` and Rayfin deploys to *My Workspace*, which is not what
+you want. Rayfin prints a hosting URL like
+`https://<name>-<region>.webapp.fabricapps.net`.
+
+That origin has to be a registered redirect URI or sign-in fails. Re-run setup
+and it reads the URL out of `app/rayfin/.deployments.json` and registers it:
 
 ```powershell
-az ad app update --id <spa-app-id> `
-  --set spa.redirectUris="['https://<your-app>.webapp.fabricapps.net/']"
-npx rayfin up
+cd ..
+python tools/setup.py --skip-pipeline-run
 ```
 
-Re-running `setup.py` later **merges** redirect URIs rather than replacing them,
-so this survives.
+Redirect URIs are **merged**, never replaced, so this is safe to repeat and
+does not disturb any other deployment sharing the `OneSafe-App` registration.
+
+> `rayfin up` writes two deployment-specific values back into
+> `app/rayfin/rayfin.yml` — a `publishable_key` and your hosting URL under
+> `allowedRedirectUris`. Both are per-deployment, so leave them out of any
+> commit you push back to the shared repo.
 
 ---
 
@@ -265,6 +274,7 @@ user, so model permissions *are* the access control. If someone can read
 | Toggles Fabric tenant settings | **No** — no write API; they are checked and reported |
 | Creates workspaces, lakehouse, notebooks, pipeline, model | Yes |
 | Deploys the front-end | **No** — run `npx rayfin up` (step 4) |
+| Registers the app's hosting URL | Yes, on the next run, once `rayfin up` has produced one |
 | Creates the admin security group | Yes, via `tools/secure_model.py` — but it will not decide who belongs in it |
 | Deletes anything | **Never** |
 
@@ -301,7 +311,13 @@ python tools/setup.py --workspace-name "OneSafe Test" --scanner-secret <secret>
 `tools/config.json` is per-clone, so the two deployments cannot overwrite each
 other's ids. Reuse the same `OneSafe-Scanner` registration — pass its existing
 secret with `--scanner-secret` rather than `--rotate-secret`, which would
-invalidate the secret the first deployment is running on.
+invalidate the secret the first deployment is running on. (You can read the
+secret back out of the first deployment with
+`python tools/read_onelake.py Files/config/onesafe_config.json`.)
+
+The chosen names are remembered in `tools/config.json`, so later re-runs in
+that clone do not need `--workspace-name` again — and cannot accidentally
+resolve to the default `OneSafe` workspace belonging to the other deployment.
 
 ---
 
