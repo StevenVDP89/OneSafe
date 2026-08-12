@@ -504,6 +504,45 @@ def resolve_capacity_id(tok: str, value: str) -> str:
     return match["id"]
 
 
+def ensure_workspace_role(tok: str, workspace_id: str, principal_id: str,
+                          principal_type: str = "ServicePrincipal",
+                          role: str = "Admin") -> None:
+    """Give a principal a workspace role, if it does not already have one.
+
+    The scanner SPN needs this on its own workspace for two reasons that are
+    easy to miss because extraction still works without it:
+
+      * The Direct Lake refresh it triggers reads the gold Delta files with its
+        own identity. Without workspace access the refresh fails with "We
+        cannot access the source Delta table", naming a table that plainly
+        exists.
+      * OneLake data access roles are a data-plane API, so listing them
+        requires access to the workspace holding the lakehouse.
+
+    An existing assignment is left exactly as it is — a deployment that has
+    deliberately narrowed the SPN to Member should not be silently promoted.
+    """
+    try:
+        _, body = api("GET", f"{FABRIC_API}/v1/workspaces/{workspace_id}/roleAssignments", tok)
+    except Exception as exc:
+        warn(f"could not read workspace role assignments ({str(exc)[:120]})")
+        return
+
+    for a in (body.get("value") or []):
+        if ((a.get("principal") or {}).get("id") or "").lower() == principal_id.lower():
+            kept(f"scanner already has {a.get('role')} on the workspace")
+            return
+
+    try:
+        api("POST", f"{FABRIC_API}/v1/workspaces/{workspace_id}/roleAssignments", tok,
+            {"principal": {"id": principal_id, "type": principal_type}, "role": role})
+        ok(f"granted the scanner {role} on the workspace")
+    except Exception as exc:
+        warn(f"could not grant the scanner {role} ({str(exc)[:160]})")
+        action(f"Add the service principal {principal_id} as workspace {role} by hand, "
+               "or the model refresh will fail.")
+
+
 def ensure_workspace(tok: str, name: str, capacity_id: str, description: str) -> str:
     _, body = api("GET", f"{FABRIC_API}/v1/workspaces", tok)
     ws = next((w for w in (body.get("value") or []) if w.get("displayName") == name), None)
@@ -685,6 +724,8 @@ def main() -> int:
         tok_fab, data_ws, capacity_id,
         "OneSafe security 360 - data plane. Holds a map of every access path in "
         "the tenant; keep membership restricted to Fabric admins.")
+    if cfg.get("scannerSpObjectId"):
+        ensure_workspace_role(tok_fab, cfg["workspaceId"], cfg["scannerSpObjectId"])
     lh = ensure_lakehouse(tok_fab, cfg["workspaceId"], LAKEHOUSE_NAME)
     cfg["lakehouseName"] = LAKEHOUSE_NAME
     cfg["lakehouseId"] = lh["id"]
@@ -716,6 +757,8 @@ def main() -> int:
         cfg["demoWorkspaceId"] = ensure_workspace(
             tok_fab, demo_ws, capacity_id,
             "OneSafe demo sandbox - RLS/CLS examples. Contains no real data.")
+        if cfg.get("scannerSpObjectId"):
+            ensure_workspace_role(tok_fab, cfg["demoWorkspaceId"], cfg["scannerSpObjectId"])
         dlh = ensure_lakehouse(tok_fab, cfg["demoWorkspaceId"], DEMO_LAKEHOUSE_NAME)
         cfg["demoLakehouseName"] = DEMO_LAKEHOUSE_NAME
         cfg["demoLakehouseId"] = dlh["id"]
