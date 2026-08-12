@@ -1,0 +1,15 @@
+{
+  "name": "onesafe-app",
+  "version": "1.0.0",
+  "description": "OneSafe - Fabric security 360 single pane of glass",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@microsoft/rayfin-client": "^1.34.0",
+    "@microsoft/rayfin-core": "^1.34.0",
+    "@microsoft/rayfin-data": "^1.34.0"
+  },
+  "devDependencies": {
+    "@microsoft/rayfin-cli": "^1.23.0"
+  }
+}

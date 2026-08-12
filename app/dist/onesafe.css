@@ -1,0 +1,312 @@
+/* Palette follows the Microsoft Fabric mark: a deep teal-green base with a
+ * green-to-mint accent gradient. Chart series live here too (--c1..--c8) so JS
+ * and CSS share one source of truth - onesafe-core reads them at startup. */
+:root{
+  --bg:#04100e; --panel:#0a1a18; --panel-2:#0f2422; --panel-3:#16332e;
+  --border:#1d413a; --border-2:#2a5a4f;
+  --text:#e8f6f2; --muted:#8bb0a8; --dim:#5f857d;
+  --accent:#14a67f; --accent-2:#3fd9a4; --accent-3:#ffb454;
+  --purple:#9b8cff; --pink:#ff6b9d; --green:#3ce88a; --red:#ff5e6c; --amber:#ffc861;
+  --c1:#14a67f; --c2:#4fd1a6; --c3:#ffb454; --c4:#9b8cff;
+  --c5:#ff6b9d; --c6:#6fe3ff; --c7:#ff5e6c; --c8:#6b8a84;
+  --shadow:0 10px 34px rgba(0,0,0,.55);
+  /* Layered elevation: a hairline top highlight plus a soft drop shadow reads
+     as a raised surface far better than a heavier border does. */
+  --shadow-1:0 1px 2px rgba(0,0,0,.35), 0 4px 14px rgba(0,0,0,.30);
+  --shadow-2:0 2px 6px rgba(0,0,0,.38), 0 16px 44px rgba(0,0,0,.48);
+  --ring:0 0 0 3px rgba(20,166,127,.28);
+  --r:14px; --r-sm:10px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --mono:ui-monospace,"Cascadia Mono","Consolas","SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;font-family:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  color:var(--text);
+  font-synthesis-weight:none;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  background:
+    radial-gradient(1200px 620px at 90% -14%, #0d3f34 0%, transparent 56%),
+    radial-gradient(900px 520px at 2% -4%, #0a3128 0%, transparent 52%),
+    var(--bg);
+  background-attachment:fixed;
+}
+/* Respect users who have asked the OS to reduce motion. */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
+::selection{background:rgba(20,166,127,.34)}
+:focus-visible{outline:none;box-shadow:var(--ring);border-radius:8px}
+/* Scrollbars: the default light-on-dark bars are visually louder than the data. */
+*{scrollbar-width:thin;scrollbar-color:var(--border-2) transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;
+  border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--border-2);background-clip:content-box}
+a{color:var(--accent);text-decoration:none}
+code{font-family:"Cascadia Code",Consolas,monospace;font-size:.92em}
+
+/* ---------------- gate ---------------- */
+#gate{position:fixed;inset:0;display:none;place-items:center;z-index:100;
+  background:radial-gradient(900px 500px at 50% 10%,#0c3229,transparent 60%),var(--bg)}
+.gate-card{width:min(430px,92vw);background:var(--panel);border:1px solid var(--border);
+  border-radius:20px;padding:34px;text-align:center;box-shadow:var(--shadow)}
+.gate-card h1{margin:16px 0 6px;font-size:24px}
+.gate-card p{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.55}
+
+/* ---------------- header ---------------- */
+header{display:flex;align-items:center;justify-content:space-between;gap:18px;
+  padding:14px 26px;border-bottom:1px solid var(--border);
+  background:rgba(4,16,14,.78);backdrop-filter:blur(12px);position:sticky;top:0;z-index:30}
+.brand{display:flex;align-items:center;gap:13px}
+.logo{width:40px;height:40px;border-radius:12px;flex:0 0 auto;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  display:grid;place-items:center;font-weight:800;color:#03211b;font-size:15px;
+  box-shadow:0 0 24px rgba(63,217,164,.32)}
+.brand h1{font-size:17px;margin:0;letter-spacing:.3px;
+  background:linear-gradient(100deg,var(--text) 20%,var(--accent-2));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.brand p{margin:2px 0 0;font-size:11.5px;color:var(--muted)}
+.hdr-right{display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--muted)}
+#userChip b{color:var(--text)}
+.freshness{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;
+  background:var(--panel-2);border:1px solid var(--border);font-size:12px}
+.freshness .dot{width:8px;height:8px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 10px var(--green)}
+.freshness.stale .dot{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+.freshness.bad .dot{background:var(--red);box-shadow:0 0 10px var(--red)}
+
+/* ---------------- nav ---------------- */
+nav{display:flex;gap:6px;padding:10px 26px;border-bottom:1px solid var(--border);
+  background:rgba(4,16,14,.62);backdrop-filter:blur(12px);
+  position:sticky;top:69px;z-index:29;overflow-x:auto}
+/* Pill tabs rather than an underline rail: with nine panes the underline row
+   read as a dense wall of text, while pills give each pane its own target. */
+nav button{background:transparent;border:1px solid transparent;border-radius:999px;
+  color:var(--muted);font:inherit;font-size:13px;font-weight:500;padding:8px 15px;
+  cursor:pointer;white-space:nowrap;
+  transition:color .18s var(--ease),background .18s var(--ease),
+             border-color .18s var(--ease),box-shadow .18s var(--ease)}
+nav button:hover{color:var(--text);background:rgba(255,255,255,.045);
+  border-color:var(--border)}
+nav button.active{color:#03211b;font-weight:600;border-color:transparent;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  box-shadow:0 2px 14px rgba(63,217,164,.34)}
+nav button.active:hover{color:#03211b}
+
+main{padding:22px 26px 70px;max-width:1620px;margin:0 auto}
+/* Panes fade in rather than snapping, which makes a pane switch feel like
+   navigation instead of a repaint. */
+#pane{animation:paneIn .26s var(--ease)}
+@keyframes paneIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------------- generic controls ---------------- */
+button,select,input{font:inherit;color:var(--text);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 13px;
+  transition:border-color .16s var(--ease),background .16s var(--ease),
+  box-shadow .16s var(--ease),transform .1s var(--ease)}
+button{cursor:pointer}
+button:hover,select:hover{border-color:var(--accent);background:var(--panel-3)}
+button:active{transform:translateY(1px)}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+button.primary{background:linear-gradient(135deg,var(--accent),#0d8a68);border:none;font-weight:600;
+  box-shadow:0 4px 16px rgba(20,166,127,.32)}
+button.primary:hover{background:linear-gradient(135deg,var(--accent-2),var(--accent));
+  box-shadow:0 6px 22px rgba(63,217,164,.4)}
+button.ghost{background:transparent;border:1px dashed var(--border);color:var(--muted);font-size:12px}
+button.ghost:hover{color:var(--text);border-color:var(--red);background:rgba(255,94,108,.08)}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:8px}
+
+/* ---------------- filter bar ---------------- */
+#filterBar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:16px;min-height:32px}
+.fb-label{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.7px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:5px 9px 5px 12px;border-radius:20px;
+  font-size:12.5px;background:linear-gradient(135deg,rgba(20,166,127,.22),rgba(63,217,164,.16));
+  border:1px solid var(--accent);animation:pop .18s ease}
+.chip .dim{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
+.chip .x{cursor:pointer;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.12);font-size:11px;line-height:1}
+.chip .x:hover{background:var(--red)}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ---------------- layout ---------------- */
+/* KPI rows use auto-fit rather than a fixed column count. A hard 5-up grid is
+ * fine on a wide monitor but collapses to unreadably thin cards the moment the
+ * app is opened in a side panel or split view, which is how admins actually use
+ * it. auto-fit keeps a floor width and wraps instead of squeezing. */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(235px,1fr))}
+.g5{grid-template-columns:repeat(auto-fit,minmax(235px,1fr))}
+.g-2-1{grid-template-columns:2fr 1fr}
+.g-1-2{grid-template-columns:1fr 2fr}
+@media(max-width:1180px){.g-2-1,.g-1-2{grid-template-columns:1fr}}
+@media(max-width:720px){.g2,.g3,.g4,.g5{grid-template-columns:1fr}}
+
+.card{position:relative;background:linear-gradient(180deg,var(--panel),var(--panel-2));
+  border:1px solid var(--border);border-radius:var(--r);padding:18px;box-shadow:var(--shadow-1);
+  min-width:0;transition:box-shadow .22s var(--ease),border-color .22s var(--ease),
+  transform .22s var(--ease)}
+/* Hairline highlight along the top edge - the cue that sells "raised surface". */
+.card::before{content:"";position:absolute;inset:0 0 auto;height:1px;border-radius:var(--r) var(--r) 0 0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.09) 22%,rgba(255,255,255,.09) 78%,transparent);
+  pointer-events:none}
+.card h3{margin:0 0 3px;font-size:14px;font-weight:600;letter-spacing:-.1px}
+.card .sub{margin:0 0 13px;font-size:11.5px;color:var(--dim);line-height:1.5}
+
+/* Section headings. An accent bar to the left gives the page a readable
+   rhythm - without it a long pane is an undifferentiated stack of cards. */
+.sec{margin:26px 0 12px;padding-left:11px;position:relative}
+.sec::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:3px;
+  border-radius:2px;background:linear-gradient(180deg,var(--accent-2),var(--accent))}
+.sec-title{font-size:14.5px;font-weight:650;letter-spacing:.2px}
+.sec-sub{font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.5;max-width:78ch}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+
+/* KPI */
+.kpi{position:relative;overflow:hidden}
+.kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+.kpi .value{font-size:32px;font-weight:700;margin:8px 0 2px;letter-spacing:-1px;
+  font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .foot{font-size:11.5px;color:var(--dim);line-height:1.45}
+.kpi::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;
+  border-radius:50%;background:radial-gradient(circle,rgba(20,166,127,.18),transparent 70%);
+  transition:transform .35s var(--ease)}
+.kpi:hover::after{transform:scale(1.18)}
+.kpi.risk .value{color:var(--red)} .kpi.risk::after{background:radial-gradient(circle,rgba(255,94,108,.2),transparent 70%)}
+.kpi.warn .value{color:var(--amber)} .kpi.warn::after{background:radial-gradient(circle,rgba(255,200,97,.2),transparent 70%)}
+.kpi.good .value{color:var(--green)} .kpi.good::after{background:radial-gradient(circle,rgba(60,232,138,.2),transparent 70%)}
+.kpi.clickable{cursor:pointer}
+.kpi.clickable:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-2)}
+.kpi.clickable:active{transform:translateY(0)}
+
+/* tables */
+.tbl-wrap{overflow:auto;max-height:var(--h,420px);border-radius:var(--r-sm);border:1px solid var(--border);
+  background:rgba(0,0,0,.14)}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+th{position:sticky;top:0;background:linear-gradient(180deg,var(--panel-3),var(--panel-2));
+  text-align:left;padding:10px 12px;
+  font-weight:600;color:var(--muted);font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.7px;border-bottom:1px solid var(--border);z-index:2;white-space:nowrap;
+  backdrop-filter:blur(6px)}
+th.sortable{cursor:pointer;user-select:none;transition:color .15s var(--ease)}
+th.sortable:hover{color:var(--text)}
+td{padding:10px 12px;border-bottom:1px solid rgba(29,65,58,.45);vertical-align:top;line-height:1.5}
+tbody tr:last-child td{border-bottom:none}
+/* Zebra striping at very low contrast: enough to track a row across wide
+   tables, not enough to compete with the badges. */
+tbody tr:nth-child(even){background:rgba(255,255,255,.014)}
+tbody tr{transition:background .13s var(--ease)}
+tbody tr:hover{background:rgba(20,166,127,.09)}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.trunc{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+
+/* badges */
+.badge{display:inline-block;padding:2.5px 9px;border-radius:20px;font-size:10.5px;
+  font-weight:600;letter-spacing:.3px;white-space:nowrap;border:1px solid transparent;
+  line-height:1.5}
+.b-admin{background:rgba(255,94,108,.16);color:#ff97a1;border-color:rgba(255,94,108,.4)}
+.b-reshare{background:rgba(255,180,84,.16);color:var(--accent-3);border-color:rgba(255,180,84,.4)}
+.b-write{background:rgba(185,140,255,.16);color:var(--purple);border-color:rgba(185,140,255,.4)}
+.b-build{background:rgba(20,166,127,.16);color:#7fe3c2;border-color:rgba(20,166,127,.4)}
+.b-read{background:rgba(141,156,196,.16);color:var(--muted);border-color:rgba(141,156,196,.35)}
+.b-risk{background:rgba(255,94,108,.16);color:#ff97a1;border-color:rgba(255,94,108,.4)}
+.b-ok{background:rgba(60,232,138,.14);color:var(--green);border-color:rgba(60,232,138,.35)}
+.b-neutral{background:var(--panel-3);color:var(--muted);border-color:var(--border)}
+.b-warn{background:rgba(255,183,77,.15);color:var(--amber);border-color:rgba(255,183,77,.38)}
+.b-group{background:rgba(63,217,164,.14);color:var(--accent-2);border-color:rgba(63,217,164,.35)}
+
+/* path rendering */
+.path{font-size:11.5px;color:var(--muted);line-height:1.5}
+.path .seg{color:var(--text)}
+.path .arrow{color:var(--accent);margin:0 5px}
+/* Collapsed rows can carry several routes; separate them so two paths never
+   read as one run-on sentence. */
+.path-line + .path-line{margin-top:4px;padding-top:4px;border-top:1px dotted var(--border)}
+td .badge + .badge{margin-left:4px}
+
+/* Grant routes: each permission sits with the route that granted it, so the
+   correspondence is structural rather than something the reader must infer. */
+.routes{display:flex;flex-direction:column;gap:6px}
+.route{position:relative;padding:6px 9px 6px 11px;border-radius:8px;
+  background:rgba(255,255,255,.022);border:1px solid var(--border);
+  border-left:2px solid var(--accent)}
+.route-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.route-head .badge + .badge{margin-left:0}
+.route-path{display:block;margin-top:4px;font-size:11px;color:var(--muted);
+  line-height:1.45;word-break:break-word}
+
+/* Row/column security. The rule expression is the thing an admin actually has
+   to reason about, so it is shown verbatim rather than summarised away. */
+.scope{display:flex;flex-direction:column;gap:4px}
+.scope-table{font-family:var(--mono);font-size:11px;color:var(--text);
+  word-break:break-all}
+.scope-cols{display:flex;flex-wrap:wrap;gap:3px}
+.chip{display:inline-block;padding:1px 6px;border-radius:5px;font-size:10px;
+  font-family:var(--mono);background:rgba(255,255,255,.05);
+  border:1px solid var(--border);color:var(--muted)}
+.rule{display:flex;flex-direction:column;gap:5px;max-width:460px}
+.rule-sum{font-size:12px;color:var(--text);line-height:1.4}
+.rule-expr{display:block;padding:6px 8px;border-radius:7px;font-size:11px;
+  font-family:var(--mono);line-height:1.5;color:var(--muted);
+  background:rgba(0,0,0,.28);border:1px solid var(--border);
+  border-left:2px solid var(--accent);white-space:pre-wrap;word-break:break-word}
+.dsec{display:inline-flex;gap:4px;align-items:center}
+.dsec .badge + .badge{margin-left:0}
+
+/* search */
+.search-row{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search-row input{flex:1;min-width:240px}
+.suggest{position:relative}
+.suggest-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--panel-2);
+  border:1px solid var(--border);border-radius:10px;max-height:320px;overflow:auto;z-index:40;
+  box-shadow:var(--shadow)}
+.suggest-list div{padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid rgba(29,65,58,.5)}
+.suggest-list div:hover{background:rgba(20,166,127,.14)}
+.suggest-list .meta{color:var(--dim);font-size:11px}
+
+/* misc */
+.empty{padding:34px 24px;text-align:center;color:var(--dim);font-size:13px;
+  line-height:1.6;border:1px dashed var(--border);border-radius:var(--r-sm);
+  background:rgba(255,255,255,.012)}
+.loading{padding:26px;text-align:center;color:var(--muted);font-size:12.5px}
+.spinner{display:inline-block;width:15px;height:15px;border:2px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
+  vertical-align:-3px;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err{background:rgba(255,94,108,.1);border:1px solid rgba(255,94,108,.4);color:#ff97a1;
+  padding:12px 14px;border-radius:10px;font-size:12.5px;margin-bottom:14px;
+  white-space:pre-wrap;word-break:break-word}
+footer{margin-top:26px;padding-top:16px;border-top:1px solid var(--border);
+  color:var(--dim);font-size:11.5px;text-align:center}
+.bar-row{display:flex;align-items:center;gap:9px;margin-bottom:7px;font-size:12px}
+.bar-row .nm{width:190px;flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .track{flex:1;height:8px;border-radius:6px;background:var(--panel-3);overflow:hidden}
+.bar-row .fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+.bar-row .vl{width:56px;text-align:right;flex:0 0 auto;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar-row.clickable{cursor:pointer}
+.bar-row.clickable:hover .nm{color:var(--accent)}
+.chart-box{position:relative;height:var(--ch,230px)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:9px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+.pill-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.pill{padding:5px 11px;border-radius:20px;font-size:12px;background:var(--panel-2);
+  border:1px solid var(--border);cursor:pointer}
+.pill:hover{border-color:var(--accent)}
+.pill.on{background:linear-gradient(135deg,rgba(20,166,127,.25),rgba(63,217,164,.18));
+  border-color:var(--accent);color:var(--text)}
+
+/* graph */
+#graphCanvas{width:100%;height:560px;display:block;border-radius:10px;background:#080d1c;
+  border:1px solid var(--border);cursor:grab}
+#graphCanvas:active{cursor:grabbing}
+.graph-tip{position:absolute;pointer-events:none;background:rgba(10,16,32,.96);
+  border:1px solid var(--border-2);border-radius:9px;padding:8px 11px;font-size:12px;
+  z-index:50;display:none;max-width:320px;box-shadow:var(--shadow)}

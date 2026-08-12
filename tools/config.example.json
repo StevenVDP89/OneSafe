@@ -1,0 +1,41 @@
+{
+  "_comment": "Template for tools/config.json. Copy is unnecessary — `python tools/setup.py` writes the real file. Every value below is discovered or created by setup; they are listed here so you can see what the tooling depends on, and so a value can be pinned by hand if you are attaching OneSafe to workspaces that already exist.",
+
+  "_required_before_setup": "Only tenantId and scannerAppId/scannerSpObjectId cannot be discovered without an Entra app. setup.py creates that app for you unless --scanner-app-id is passed.",
+
+  "tenantId": "00000000-0000-0000-0000-000000000000",
+
+  "capacityId": "00000000-0000-0000-0000-000000000000",
+  "workspaceId": "00000000-0000-0000-0000-000000000000",
+  "workspaceName": "OneSafe",
+  "lakehouseId": "00000000-0000-0000-0000-000000000000",
+  "lakehouseName": "lh_onesafe",
+
+  "_sql_endpoint": "Discovered from the lakehouse after creation. sqlEndpointId — not lakehouseId — is what Direct Lake M expressions need.",
+  "sqlEndpoint": "",
+  "sqlEndpointId": "00000000-0000-0000-0000-000000000000",
+
+  "semanticModelId": "00000000-0000-0000-0000-000000000000",
+  "pipelineId": "00000000-0000-0000-0000-000000000000",
+
+  "_scanner": "Entra app registration used by the notebooks to call the admin and Graph APIs. Its client secret is NOT stored here — it goes to OneLake via tools/upload_config.py.",
+  "scannerAppId": "00000000-0000-0000-0000-000000000000",
+  "scannerSpObjectId": "00000000-0000-0000-0000-000000000000",
+
+  "_app": "Entra SPA registration the front-end signs users in with. Delegated Power BI access only; it never holds elevated rights of its own.",
+  "spaAppId": "00000000-0000-0000-0000-000000000000",
+  "spaObjectId": "00000000-0000-0000-0000-000000000000",
+  "appWorkspaceId": "00000000-0000-0000-0000-000000000000",
+  "appCapacityId": "00000000-0000-0000-0000-000000000000",
+
+  "_admin_group": "Optional. Security group granted read on the semantic model by tools/secure_model.py. Leave blank to skip.",
+  "adminGroupId": "",
+
+  "_demo": "Optional sandbox used by tools/seed_*.py and notebooks 97/98 to demonstrate OneLake and semantic-model RLS/CLS. Created by `setup.py --with-demo`. demoPrincipals are the users the demo roles are assigned to — they must already exist in your tenant.",
+  "demoWorkspaceId": "",
+  "demoWorkspaceName": "OneSafe Demo",
+  "demoLakehouseId": "",
+  "demoLakehouseName": "lh_onesafe_demo",
+  "demoSemanticModelId": "",
+  "demoPrincipals": []
+}

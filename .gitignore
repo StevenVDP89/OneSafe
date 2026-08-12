@@ -1,0 +1,45 @@
+# --------------------------------------------------------------- tenant state
+#
+# These are written by tools/setup.py against whichever tenant you deploy into.
+# They are not secret, but they are specific to one deployment: committing them
+# means the next person's tooling silently targets your workspaces.
+#
+# Templates for both are committed as *.example.*.
+tools/config.json
+tools/notebook_ids.json
+app/dist/config.js
+
+# --------------------------------------------------------------------- secrets
+#
+# The scanner's client secret is never written to the repo — it goes to OneLake
+# via tools/upload_config.py. These are the files that *would* carry credentials
+# if a tool decided to cache one.
+.env
+.env.*
+!.env.example
+app/rayfin/.env*
+app/rayfin/.deployments.json
+app/rayfin/.lockfile.json
+app/rayfin/.temp/
+
+# ---------------------------------------------------------------- build output
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ------------------------------------------------------------------- scratch
+#
+# Everything the tooling emits for one-off inspection. tools/_*.dax and
+# tools/_*.json are throwaway query and probe files.
+tools/_*
+*.log
+logs/
+
+# ------------------------------------------------------------- editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

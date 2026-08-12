@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OneSafe — Fabric Security 360</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%235b8cff'/><text x='16' y='22' font-size='16' font-family='Segoe UI' font-weight='bold' fill='%23041228' text-anchor='middle'>1S</text></svg>" />
+<link rel="stylesheet" href="onesafe.css" />
+</head>
+<body>
+
+<!-- ------------------------------------------------------------ sign in -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="logo" style="margin:0 auto;width:56px;height:56px;border-radius:16px;font-size:20px">1S</div>
+    <h1>OneSafe</h1>
+    <p>
+      A 360° view of every identity on your Fabric tenant and everything they can reach —
+      workspace roles, item permissions, semantic model security and OneLake data access,
+      resolved into one picture.
+    </p>
+    <button class="primary" id="signIn" style="width:100%;padding:12px">Sign in with Microsoft</button>
+    <div id="gateErr" class="err" style="display:none;margin:16px 0 0;text-align:left"></div>
+    <p style="margin:18px 0 0;font-size:11.5px;color:var(--dim)">
+      OneSafe queries the semantic model as you. It can never show you more than you are
+      already entitled to see.
+    </p>
+  </div>
+</div>
+
+<!-- ---------------------------------------------------------------- app -->
+<div id="app" style="display:none">
+  <header>
+    <div class="brand">
+      <div class="logo">1S</div>
+      <div>
+        <h1>OneSafe</h1>
+        <p>Fabric security, single pane of glass</p>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="freshness" id="freshness" title="Last successful security scan">
+        <span class="dot"></span><span id="freshText">checking…</span>
+      </div>
+      <span id="userChip"></span>
+      <button class="btn-sm" id="signOut">Sign out</button>
+    </div>
+  </header>
+
+  <nav>
+    <button data-pane="overview" class="active">Overview</button>
+    <button data-pane="principal">Principal 360</button>
+    <button data-pane="item">Item 360</button>
+    <button data-pane="graph">Access graph</button>
+    <button data-pane="onelake">OneLake security</button>
+    <button data-pane="datasec">Row &amp; column security</button>
+    <button data-pane="risk">Risk &amp; drift</button>
+    <button data-pane="compare">Compare</button>
+    <button data-pane="health">Health</button>
+  </nav>
+
+  <main>
+    <div id="filterBar"></div>
+    <div id="paneBody"></div>
+    <footer>
+      OneSafe · security snapshot refreshed daily from the Fabric Admin, Scanner, OneLake and
+      Microsoft Graph APIs · this view reflects the last completed scan, not a live authorisation check
+    </footer>
+  </main>
+</div>
+
+<script src="vendor/msal-browser.min.js"></script>
+<script src="vendor/chart.umd.min.js"></script>
+<script>
+/* Both libraries are vendored rather than pulled from a CDN. A public CDN in
+ * the auth path of a tenant-security console is a poor trade, and the MSAL CDN
+ * path this app originally used was silently 404ing - which surfaced only as
+ * "_msal is not defined" once onesafe-core.js failed to parse. Fail loudly. */
+(function () {
+  const missing = [];
+  if (typeof msal === "undefined") missing.push("msal-browser");
+  if (typeof Chart === "undefined") missing.push("chart.js");
+  if (missing.length) {
+    document.addEventListener("DOMContentLoaded", function () {
+      const e = document.getElementById("gateErr");
+      if (e) {
+        e.style.display = "block";
+        e.textContent =
+          "Could not load required libraries (" + missing.join(", ") +
+          "). Check that vendor/ deployed with the app.";
+      }
+    });
+  }
+})();
+</script>
+<script src="config.js"></script>
+<script src="onesafe-core.js"></script>
+<script src="onesafe-panes.js"></script>
+<script src="onesafe-panes2.js"></script>
+<script>
+/* ------------------------------------------------------------- bootstrap */
+
+function showGateError(msg) {
+  const e = $("gateErr");
+  e.style.display = "block";
+  e.textContent = msg;
+}
+
+async function loadSnapshots() {
+  const rows = await runDax(
+    `EVALUATE
+SELECTCOLUMNS(
+  'dim_date',
+  "snapshot_date", 'dim_date'[snapshot_date],
+  "is_latest", 'dim_date'[is_latest]
+)`,
+    { cache: false }
+  );
+  state.snapshots = rows
+    .map((r) => pick(r, "[snapshot_date]"))
+    .filter(Boolean)
+    .sort()
+    .reverse();
+}
+
+async function loadFreshness() {
+  const box = $("freshness"), txt = $("freshText");
+  try {
+    const r = await runDax(
+      `EVALUATE
+CALCULATETABLE(
+  ROW("last", [Last Refresh], "fail", [Pipeline Failures], "steps", [Pipeline Steps]),
+  'dim_date'[is_latest] = TRUE()
+)`,
+      { cache: false }
+    );
+    const ts = val(r, "[last]", null);
+    const fail = val(r, "[fail]", 0);
+    const steps = val(r, "[steps]", 0);
+    if (!ts) { txt.textContent = "no scan telemetry"; box.classList.add("bad"); return; }
+
+    const d = new Date(String(ts).endsWith("Z") ? ts : ts + "Z");
+    const hrs = (Date.now() - d.getTime()) / 36e5;
+    const rel = hrs < 1 ? "just now"
+      : hrs < 24 ? `${Math.round(hrs)}h ago`
+      : `${Math.round(hrs / 24)}d ago`;
+
+    txt.textContent = `Scanned ${rel}`;
+    box.classList.remove("stale", "bad");
+    // Stale data on a security dashboard is dangerous, so say so loudly.
+    if (fail > 0) { box.classList.add("bad"); txt.textContent += ` · ${fail}/${steps} steps failed`; }
+    else if (hrs > 36) { box.classList.add("stale"); txt.textContent += " · stale"; }
+    box.title = `Last successful scan: ${String(ts).replace("T", " ").slice(0, 19)} UTC`;
+    box.style.cursor = "pointer";
+    box.onclick = () => showPane("health");
+  } catch (e) {
+    txt.textContent = "freshness unavailable";
+    box.classList.add("stale");
+  }
+}
+
+async function start() {
+  $("gate").style.display = "none";
+  $("app").style.display = "block";
+  $("userChip").innerHTML = `<b>${escapeHtml(account.name || account.username)}</b>`;
+
+  document.querySelectorAll("nav button").forEach((b) => {
+    b.onclick = () => showPane(b.dataset.pane);
+  });
+  $("signOut").onclick = () => _msal.logoutRedirect({ account });
+
+  try {
+    await loadSnapshots();
+  } catch (e) {
+    $("paneBody").appendChild(
+      el("div", "err",
+        "Could not reach the OneSafe semantic model.\n\n" + e.message +
+        "\n\nIf this says the dataset was not found, confirm you have Read access to sm_onesafe " +
+        "in the OneSafe workspace.")
+    );
+    renderFilterBar();
+    return;
+  }
+  renderFilterBar();
+  loadFreshness();
+  showPane("overview");
+}
+
+(async function () {
+  const gate = $("gate");
+  gate.style.display = "grid";
+  $("signIn").onclick = () => _msal.loginRedirect({ scopes: CFG.pbiScopes });
+
+  try {
+    const resp = await _msal.handleRedirectPromise();
+    if (resp?.account) _msal.setActiveAccount(resp.account);
+    account = _msal.getActiveAccount() || _msal.getAllAccounts()[0] || null;
+    if (account) {
+      _msal.setActiveAccount(account);
+      await start();
+    }
+  } catch (e) {
+    showGateError("Sign-in failed: " + e.message);
+  }
+})();
+</script>
+</body>
+</html>

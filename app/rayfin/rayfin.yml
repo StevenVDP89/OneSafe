@@ -1,0 +1,29 @@
+id: onesafe
+name: OneSafe
+version: 1.0.11
+services:
+  auth:
+    enabled: true
+    customClaims:
+      app_version: 1.0.0
+    scopes:
+      - read:data
+      - write:data
+    password:
+      enabled: false
+    allowedRedirectUris:
+      - http://localhost:5173
+      # `rayfin up` appends this deployment's hosting URL here automatically.
+      # Leave it out of source control — each deployment gets its own origin.
+    fabric:
+      enabled: true
+  data:
+    enabled: false
+  storage:
+    enabled: false
+  staticHosting:
+    enabled: true
+    folder: dist
+    indexDocument: index.html
+  functions:
+    enabled: false
