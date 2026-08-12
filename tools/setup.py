@@ -323,6 +323,32 @@ def ensure_scanner_app(cfg: Dict[str, Any], no_secret: bool,
     return secret
 
 
+def rayfin_hosting_urls() -> List[str]:
+    """Hosting origins Rayfin has already deployed to, if any.
+
+    Reading these back closes the one loop setup cannot otherwise close: the
+    hosting URL does not exist until `rayfin up` has run, so the first setup
+    pass can only register localhost. Re-running setup afterwards picks the
+    origin up here and registers it, instead of leaving the user to copy a URL
+    into an az command by hand. Both the bare origin and the trailing-slash
+    form are returned because MSAL matches redirect URIs exactly and different
+    browsers normalise the two differently.
+    """
+    path = ROOT / "app" / "rayfin" / ".deployments.json"
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    urls: List[str] = []
+    for dep in (data.get("deployments") or {}).values():
+        origin = (dep or {}).get("hostingUrl")
+        if origin:
+            urls += [origin.rstrip("/"), origin.rstrip("/") + "/"]
+    return urls
+
+
 def ensure_spa_app(cfg: Dict[str, Any], redirect_uris: List[str]) -> None:
     """Find-or-create the public SPA registration the front-end signs in with."""
     phase(f"Entra app registration '{SPA_APP_NAME}'")
@@ -591,8 +617,9 @@ def main() -> int:
                     help="verify prerequisites and stop, changing nothing")
     ap.add_argument("--capacity",
                     help="capacity name or id to host the workspaces")
-    ap.add_argument("--workspace-name", default=DATA_WORKSPACE,
-                    help=f"name for the data workspace (default: {DATA_WORKSPACE})")
+    ap.add_argument("--workspace-name",
+                    help=f"name for the data workspace (default: the name this "
+                         f"deployment already uses, else '{DATA_WORKSPACE}')")
     ap.add_argument("--app-workspace-name",
                     help="name for the app workspace (default: '<workspace-name> App')")
     ap.add_argument("--demo-workspace-name",
@@ -617,10 +644,6 @@ def main() -> int:
                     help="provision everything but do not run the first pipeline")
     args = ap.parse_args()
 
-    data_ws = args.workspace_name
-    app_ws = args.app_workspace_name or f"{data_ws} App"
-    demo_ws = args.demo_workspace_name or f"{data_ws} Demo"
-
     print(f"{Style.BOLD}OneSafe setup{Style.OFF}")
 
     if not check_prerequisites():
@@ -636,6 +659,16 @@ def main() -> int:
     cfg = load() if CONFIG_PATH.exists() else {}
     cfg["tenantId"] = json.loads(sh(["az", "account", "show", "-o", "json"]).stdout)["tenantId"]
     save(cfg)
+
+    # Names fall back to whatever this deployment already used. Without that,
+    # a re-run without --workspace-name would resolve to the default "OneSafe"
+    # and quietly repoint a differently-named deployment at someone else's
+    # workspace.
+    data_ws = args.workspace_name or cfg.get("workspaceName") or DATA_WORKSPACE
+    app_ws = (args.app_workspace_name or cfg.get("appWorkspaceName")
+              or f"{data_ws} App")
+    demo_ws = (args.demo_workspace_name or cfg.get("demoWorkspaceName")
+               or f"{data_ws} Demo")
 
     secret = args.scanner_secret
     if not args.skip_entra:
@@ -708,8 +741,9 @@ def main() -> int:
     if not args.skip_entra:
         # The app is served from the Rayfin hosting URL, which does not exist
         # until the first deploy. localhost is registered now so the app can be
-        # run locally; setup prints the follow-up for the hosted origin.
-        ensure_spa_app(cfg, redirect_uris=[])
+        # run locally; once `rayfin up` has run, a re-run of setup finds the
+        # hosted origin in .deployments.json and registers it too.
+        ensure_spa_app(cfg, redirect_uris=rayfin_hosting_urls())
 
     phase("Uploading runtime config to OneLake")
     if secret:
@@ -760,10 +794,10 @@ def main() -> int:
     print(f"  2. Enable the Fabric tenant settings listed above, scoped to a group")
     print(f"     containing the scanner SPN ({cfg.get('scannerSpObjectId')}).")
     print(f"  3. Deploy the app:")
-    print(f"       cd app && npx rayfin up")
-    print(f"  4. Add the printed hosting URL as a redirect URI on {SPA_APP_NAME}:")
-    print(f"       az ad app update --id {cfg.get('spaAppId')} \\")
-    print(f"         --set spa.redirectUris=\"['https://<your-app>.webapp.fabricapps.net/']\"")
+    print(f"       cd app && npx rayfin up --workspace-id {cfg.get('appWorkspaceId')}")
+    print(f"  4. Re-run this script to register the app's hosting URL on "
+          f"{SPA_APP_NAME}.")
+    print(f"     (It reads the URL from app/rayfin/.deployments.json.)")
     if cfg.get("demoWorkspaceId"):
         print(f"  5. Seed the demo sandbox:")
         print(f"       python tools/run_notebooks.py 97_seed_demo_lakehouse")
