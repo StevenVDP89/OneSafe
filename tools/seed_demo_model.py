@@ -57,7 +57,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-CFG = json.loads((Path(__file__).resolve().parent / "config.json").read_text(encoding="utf-8-sig"))
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from onesafe_config import load as _load_config, load_notebook_ids as _load_notebook_ids
+CFG = _load_config()
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from onesafe_config import demo as _demo  # noqa: E402

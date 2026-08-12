@@ -21,7 +21,11 @@ from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-CONFIG = json.loads((HERE / "config.json").read_text(encoding="utf-8-sig"))
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from onesafe_config import load as _load_config, load_notebook_ids as _load_notebook_ids
+CONFIG = _load_config()
 QUERIES = HERE / "_app_queries.json"
 
 POWERBI = "https://api.powerbi.com/v1.0/myorg"

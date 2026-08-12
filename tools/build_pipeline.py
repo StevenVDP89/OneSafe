@@ -18,8 +18,12 @@ from pathlib import Path
 
 FABRIC_API = "https://api.fabric.microsoft.com"
 ROOT = Path(__file__).resolve().parent
-CONFIG = json.loads((ROOT / "config.json").read_text(encoding="utf-8-sig"))
-NB_IDS = json.loads((ROOT / "notebook_ids.json").read_text(encoding="utf-8-sig"))
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from onesafe_config import load as _load_config, load_notebook_ids as _load_notebook_ids
+CONFIG = _load_config()
+NB_IDS = _load_notebook_ids()
 
 WORKSPACE_ID = CONFIG["workspaceId"]
 PIPELINE_NAME = "pl_onesafe_daily"

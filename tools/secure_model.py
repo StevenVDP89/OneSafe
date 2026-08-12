@@ -28,7 +28,11 @@ import urllib.request
 from pathlib import Path
 
 CONFIG_PATH = Path(__file__).resolve().parent / "config.json"
-CONFIG = json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from onesafe_config import load as _load_config, load_notebook_ids as _load_notebook_ids
+CONFIG = _load_config()
 
 GRAPH = "https://graph.microsoft.com/v1.0"
 FABRIC = "https://api.fabric.microsoft.com"

@@ -52,6 +52,23 @@ def save(cfg: Dict[str, Any]) -> None:
     CONFIG_PATH.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
 
 
+NOTEBOOK_IDS_PATH = TOOLS_DIR / "notebook_ids.json"
+
+
+def load_notebook_ids() -> Dict[str, str]:
+    """Read the notebook name -> id map written by deploy_notebooks.py."""
+    if not NOTEBOOK_IDS_PATH.exists():
+        raise ConfigError(
+            f"{NOTEBOOK_IDS_PATH} does not exist.\n"
+            "  Run `python tools/deploy_notebooks.py` first — it creates the\n"
+            "  notebooks in the workspace and records their ids here."
+        )
+    try:
+        return json.loads(NOTEBOOK_IDS_PATH.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError as exc:
+        raise ConfigError(f"{NOTEBOOK_IDS_PATH} is not valid JSON: {exc}") from None
+
+
 _PLACEHOLDER = "00000000-0000-0000-0000-000000000000"
 
 

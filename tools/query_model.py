@@ -10,7 +10,11 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-CFG = json.loads((ROOT / "config.json").read_text(encoding="utf-8-sig"))
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from onesafe_config import load as _load_config, load_notebook_ids as _load_notebook_ids
+CFG = _load_config()
 MODEL_ID = CFG["semanticModelId"]
 
 
