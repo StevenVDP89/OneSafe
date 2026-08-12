@@ -334,7 +334,7 @@ def rayfin_hosting_urls() -> List[str]:
     form are returned because MSAL matches redirect URIs exactly and different
     browsers normalise the two differently.
     """
-    path = ROOT / "app" / "rayfin" / ".deployments.json"
+    path = Path(__file__).resolve().parent.parent / "app" / "rayfin" / ".deployments.json"
     if not path.exists():
         return []
     try:
