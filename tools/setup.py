@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
@@ -55,6 +56,8 @@ SPA_APP_NAME = "OneSafe-App"
 DATA_WORKSPACE = "OneSafe"
 LAKEHOUSE_NAME = "lh_onesafe"
 DEMO_LAKEHOUSE_NAME = "lh_onesafe_demo"
+UUID_RE = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+                     r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 
 # Application permissions the scanner needs on Graph. Power BI rights are NOT
 # granted here on purpose — see check_tenant_settings().
@@ -452,6 +455,29 @@ def pick_capacity(tok: str, cfg: Dict[str, Any], preferred: Optional[str]) -> st
     return chosen["id"]
 
 
+def resolve_capacity_id(tok: str, value: str) -> str:
+    """Accept a capacity name or id and always return an id.
+
+    The assignToCapacity API only takes a GUID, so a friendly name passed to
+    --app-capacity has to be translated before it gets there.
+    """
+    if UUID_RE.fullmatch(value):
+        return value
+    _, body = api("GET", f"{FABRIC_API}/v1/capacities", tok)
+    caps = list(body.get("value") or [])
+    match = next((c for c in caps
+                  if (c.get("displayName") or "").lower() == value.lower()), None)
+    if not match:
+        raise SystemExit(
+            f"\nCapacity '{value}' not found. Available:\n  " +
+            "\n  ".join(f"{c.get('displayName')}  {c['id']}  {c.get('sku')}  "
+                        f"{c.get('region')}  {c.get('state')}" for c in caps) + "\n")
+    if match.get("state") and match["state"] != "Active":
+        raise SystemExit(
+            f"\nCapacity '{value}' is {match['state']}. Resume it and re-run.\n")
+    return match["id"]
+
+
 def ensure_workspace(tok: str, name: str, capacity_id: str, description: str) -> str:
     _, body = api("GET", f"{FABRIC_API}/v1/workspaces", tok)
     ws = next((w for w in (body.get("value") or []) if w.get("displayName") == name), None)
@@ -642,6 +668,7 @@ def main() -> int:
     # over the lakehouse that produced the security map. An already-chosen app
     # capacity is preserved — if Rayfin worked there, moving it would break it.
     app_capacity = args.app_capacity or cfg.get("appCapacityId") or capacity_id
+    app_capacity = resolve_capacity_id(tok_fab, app_capacity)
     cfg["appWorkspaceId"] = ensure_workspace(
         tok_fab, app_ws, app_capacity,
         "Front-end host for the OneSafe security 360 app.")
