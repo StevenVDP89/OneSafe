@@ -279,11 +279,29 @@ URIs and client secrets are preserved unless you explicitly ask otherwise.
 |---|---|
 | `--check` | Prerequisites and tenant settings only; changes nothing |
 | `--capacity` / `--app-capacity` | Choose capacities by name or id |
+| `--workspace-name` | Name the data workspace (default `OneSafe`). The app and demo workspaces derive from it — `<name> App`, `<name> Demo` — unless you override them with `--app-workspace-name` / `--demo-workspace-name` |
 | `--skip-pipeline-run` | Provision without the ~20 minute first run |
 | `--with-demo`, `--demo-user <upn>` | Also create the demo sandbox |
 | `--rotate-secret` | Issue a new scanner secret (invalidates the current one) |
 | `--scanner-secret <value>` | Use a secret you already hold |
 | `--skip-entra` | Assume the registrations exist in config |
+
+### Running two deployments side by side
+
+`--workspace-name` plus a second clone is enough to stand up an isolated
+deployment — a staging copy, or a test of a change before it touches the real
+one:
+
+```powershell
+git clone <repo> OneSafe-Test
+cd OneSafe-Test
+python tools/setup.py --workspace-name "OneSafe Test" --scanner-secret <secret>
+```
+
+`tools/config.json` is per-clone, so the two deployments cannot overwrite each
+other's ids. Reuse the same `OneSafe-Scanner` registration — pass its existing
+secret with `--scanner-secret` rather than `--rotate-secret`, which would
+invalidate the secret the first deployment is running on.
 
 ---
 

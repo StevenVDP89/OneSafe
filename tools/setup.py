@@ -47,9 +47,12 @@ GRAPH_API = "https://graph.microsoft.com"
 
 SCANNER_APP_NAME = "OneSafe-Scanner"
 SPA_APP_NAME = "OneSafe-App"
+
+# Workspace names are defaults, not constants: --workspace-name lets a second
+# deployment (a test, or a per-region split) live alongside an existing one
+# without colliding. The app and demo names derive from the data workspace so
+# a renamed deployment stays recognisable as one set.
 DATA_WORKSPACE = "OneSafe"
-APP_WORKSPACE = "OneSafe App"
-DEMO_WORKSPACE = "OneSafe Demo"
 LAKEHOUSE_NAME = "lh_onesafe"
 DEMO_LAKEHOUSE_NAME = "lh_onesafe_demo"
 
@@ -562,6 +565,12 @@ def main() -> int:
                     help="verify prerequisites and stop, changing nothing")
     ap.add_argument("--capacity",
                     help="capacity name or id to host the workspaces")
+    ap.add_argument("--workspace-name", default=DATA_WORKSPACE,
+                    help=f"name for the data workspace (default: {DATA_WORKSPACE})")
+    ap.add_argument("--app-workspace-name",
+                    help="name for the app workspace (default: '<workspace-name> App')")
+    ap.add_argument("--demo-workspace-name",
+                    help="name for the demo workspace (default: '<workspace-name> Demo')")
     ap.add_argument("--app-capacity",
                     help="capacity for the app workspace (Rayfin is not available "
                          "on every capacity/region; defaults to --capacity)")
@@ -581,6 +590,10 @@ def main() -> int:
     ap.add_argument("--skip-pipeline-run", action="store_true",
                     help="provision everything but do not run the first pipeline")
     args = ap.parse_args()
+
+    data_ws = args.workspace_name
+    app_ws = args.app_workspace_name or f"{data_ws} App"
+    demo_ws = args.demo_workspace_name or f"{data_ws} Demo"
 
     print(f"{Style.BOLD}OneSafe setup{Style.OFF}")
 
@@ -608,9 +621,9 @@ def main() -> int:
     capacity_id = pick_capacity(tok_fab, cfg, args.capacity)
 
     phase("Fabric workspaces and lakehouse")
-    cfg["workspaceName"] = DATA_WORKSPACE
+    cfg["workspaceName"] = data_ws
     cfg["workspaceId"] = ensure_workspace(
-        tok_fab, DATA_WORKSPACE, capacity_id,
+        tok_fab, data_ws, capacity_id,
         "OneSafe security 360 - data plane. Holds a map of every access path in "
         "the tenant; keep membership restricted to Fabric admins.")
     lh = ensure_lakehouse(tok_fab, cfg["workspaceId"], LAKEHOUSE_NAME)
@@ -630,17 +643,18 @@ def main() -> int:
     # capacity is preserved — if Rayfin worked there, moving it would break it.
     app_capacity = args.app_capacity or cfg.get("appCapacityId") or capacity_id
     cfg["appWorkspaceId"] = ensure_workspace(
-        tok_fab, APP_WORKSPACE, app_capacity,
+        tok_fab, app_ws, app_capacity,
         "Front-end host for the OneSafe security 360 app.")
+    cfg["appWorkspaceName"] = app_ws
     cfg["appCapacityId"] = app_capacity
     save(cfg)
 
     demo_users = args.demo_user
     if args.with_demo or demo_users:
         phase("Demo sandbox")
-        cfg["demoWorkspaceName"] = DEMO_WORKSPACE
+        cfg["demoWorkspaceName"] = demo_ws
         cfg["demoWorkspaceId"] = ensure_workspace(
-            tok_fab, DEMO_WORKSPACE, capacity_id,
+            tok_fab, demo_ws, capacity_id,
             "OneSafe demo sandbox - RLS/CLS examples. Contains no real data.")
         dlh = ensure_lakehouse(tok_fab, cfg["demoWorkspaceId"], DEMO_LAKEHOUSE_NAME)
         cfg["demoLakehouseName"] = DEMO_LAKEHOUSE_NAME
